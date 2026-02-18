@@ -171,8 +171,8 @@ std::vector<int> slic(ImageBase & imIN, int S, std::vector<Superpixel> & grid, d
 
     for (size_t k = 0; k < grid.size(); k++)
     {
-        int x = std::max(0, std::min((int)grid[k].mx, imIN.getWidth() - 1));
-        int y = std::max(0, std::min((int)grid[k].my, imIN.getHeight() - 1));
+        int x = std::max(0, std::min((int)grid[k].mx, imIN.getWidth() - 2));
+        int y = std::max(0, std::min((int)grid[k].my, imIN.getHeight() - 2));
         grid[k].mr = (double)imIN[y * 3][x * 3];
         grid[k].mg = (double)imIN[y * 3][x * 3 + 1];
         grid[k].mb = (double)imIN[y * 3][x * 3 + 2];
@@ -187,8 +187,8 @@ std::vector<int> slic(ImageBase & imIN, int S, std::vector<Superpixel> & grid, d
             for (int h = -S; h <= S; h++)
                 for (int w = -S; w <= S; w++)
                 {
-                    int x = std::max(0, std::min(((int)grid[k].mx + w), imIN.getWidth() - 1));
-                    int y = std::max(0, std::min(((int)grid[k].my + h), imIN.getHeight() - 1));
+                    int x = std::max(0, std::min(((int)grid[k].mx + w), imIN.getWidth() - 2));
+                    int y = std::max(0, std::min(((int)grid[k].my + h), imIN.getHeight() - 2));
                     double e = dist(x, y, imIN[y*3][x*3], imIN[y*3][x*3+1], imIN[y*3][x*3+2], grid[k].mx, grid[k].my, grid[k].mr, grid[k].mg, grid[k].mb, m, S);
                     if (d[y * imIN.getWidth() + x] > e)
                     {
