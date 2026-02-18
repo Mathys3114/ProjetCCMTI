@@ -3,19 +3,20 @@
 #include <vector>
 #include "ImageBase.h"
 #include "slic.hpp"
-const char * USAGE = "genGrid K imgIN.ppm imgOUT.ppm";
+const char * USAGE = "genGridNudge K g imgIN.ppm imgOUT.ppm";
 
 
 int main(int argc, char * argv[])
 {
-    if (argc != 4)
+    if (argc != 5)
     {
         std::cerr << USAGE << std::endl;
         return 1;
     }
     double K = std::atof(argv[1]); // number of superpixel
-    char * imINn = argv[2];
-    char * imOUTn = argv[3];
+    int g = std::atoi(argv[2]);
+    char * imINn = argv[3];
+    char * imOUTn = argv[4];
     ImageBase imIN;
     imIN.load(imINn);
 
@@ -23,6 +24,8 @@ int main(int argc, char * argv[])
     double h = imIN.getHeight();
 
     std::vector<Superpixel> grid = genGrid(w, h, K);
+    grid = nudgeAlongGradient(imIN, grid, g);
+
 
     ImageBase imOUT(imIN.getWidth(), imIN.getHeight(), true);
 
