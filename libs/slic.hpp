@@ -56,11 +56,13 @@ std::vector<Superpixel> & nudgeAlongGradient(ImageBase & imIN, std::vector<Super
         int x = grid[i].mx;
         int y = grid[i].my;
         double m = MAXFLOAT;
-        for (int h = -g; h < g;h++)
-            for (int w = -g; w < g; w++)
+        for (int h = -g; h <= g;h++)
+            for (int w = -g; w <= g; w++)
             {
-                size_t dy = std::max(0, std::min(imIN.getHeight() - 2, y+h));
-                size_t dx = std::max(0, std::min(imIN.getWidth() - 2, x+w));
+                int dx = y + h;
+                int dy = x + w;
+                    if (dx < 0 || dx >= imIN.getWidth() - 1 || dy < 0 || dy >= imIN.getHeight() - 1)
+                        continue;
                 double r0 = imIN[(dy)*3][(dx)*3];
                 double g0 = imIN[(dy)*3][(dx)*3+1];
                 double b0 = imIN[(dy)*3][(dx)*3+2];
@@ -102,6 +104,16 @@ double _ds(
     return std::sqrt((x * x) + (y * y));
 }
 
+double _dsS(
+    double px, double py, 
+    double sx, double sy
+)
+{
+    double x = (px - sx);
+    double y = (py - sy);
+    return (x * x) + (y * y);
+}
+
 double _dc(
     double pr, double pg, double pb,
     double sr, double sg, double sb
@@ -113,15 +125,29 @@ double _dc(
     return std::sqrt((r*r)+(g*g)+(b*b));
 }
 
+
+double _dcS(
+    double pr, double pg, double pb,
+    double sr, double sg, double sb
+)
+{
+    double r = (pr - sr);
+    double g = (pg - sg);
+    double b = (pb - sb);
+    return (r*r)+(g*g)+(b*b);
+}
+
+
+
 double dist(
     double px, double py, double pr, double pg, double pb, 
     double sx, double sy, double sr, double sg, double sb, 
     double m, double S
 )
 {
-    double ds = _ds(px, py, sx, sy);
-    double dc = _dc(pr, pg, pb, sr, sg, sb);
-    return m*m*((ds * ds) / (S * S)) + (dc * dc);
+    double ds = _dsS(px, py, sx, sy);
+    double dc = _dcS(pr, pg, pb, sr, sg, sb);
+    return m*m*(ds / (S * S)) + dc;
 }
 
 std::vector<Superpixel> _updt(ImageBase & imIN, std::vector<int> & l, size_t K)
@@ -171,24 +197,28 @@ std::vector<int> slic(ImageBase & imIN, int S, std::vector<Superpixel> & grid, d
 
     for (size_t k = 0; k < grid.size(); k++)
     {
-        int x = std::max(0, std::min((int)grid[k].mx, imIN.getWidth() - 2));
-        int y = std::max(0, std::min((int)grid[k].my, imIN.getHeight() - 2));
+        int x = grid[k].mx;
+        int y = grid[k].my;
         grid[k].mr = (double)imIN[y * 3][x * 3];
         grid[k].mg = (double)imIN[y * 3][x * 3 + 1];
         grid[k].mb = (double)imIN[y * 3][x * 3 + 2];
     }
 
     double E = MAXFLOAT;
-    while (E > 0.5)
+    int iter = 0;
+    while (E > 0.5 && iter < 1000)
     {
+        iter++;
         for (size_t i = 0; i < d.size(); i++)
             d[i] = MAXFLOAT;
         for (size_t k = 0; k < grid.size(); k++)
             for (int h = -S; h <= S; h++)
                 for (int w = -S; w <= S; w++)
                 {
-                    int x = std::max(0, std::min(((int)grid[k].mx + w), imIN.getWidth() - 2));
-                    int y = std::max(0, std::min(((int)grid[k].my + h), imIN.getHeight() - 2));
+                    int x = ((int)grid[k].mx + w);
+                    int y = ((int)grid[k].my + h);
+                    if (x < 0 || x >= imIN.getWidth() || y < 0 || y >= imIN.getHeight())
+                        continue;
                     double e = dist(x, y, imIN[y*3][x*3], imIN[y*3][x*3+1], imIN[y*3][x*3+2], grid[k].mx, grid[k].my, grid[k].mr, grid[k].mg, grid[k].mb, m, S);
                     if (d[y * imIN.getWidth() + x] > e)
                     {
@@ -200,11 +230,11 @@ std::vector<int> slic(ImageBase & imIN, int S, std::vector<Superpixel> & grid, d
         double acc = 0.0;
         for (size_t k = 0; k < grid.size(); k++)
         {
-            double ds = _ds(grid[k].mx, grid[k].my, nG[k].mx, nG[k].my);
-            acc += (ds * ds);
+            double ds = _dsS(grid[k].mx, grid[k].my, nG[k].mx, nG[k].my);
+            acc += ds;
         }
         acc/=grid.size();
-        E = acc;
+        E = std::sqrt(acc);
         grid = nG;
     }
 
