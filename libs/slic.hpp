@@ -1,25 +1,26 @@
 #include <cmath>
 #include <vector>
 #include <map>
+#include <set>
 #include "ImageBase.h"
 
 class Superpixel
 {
-    public:
-        double mx = 0;
-        double my = 0;
-        double mr = 0;
-        double mg = 0;
-        double mb = 0;
-        Superpixel(){}
-        Superpixel(double x, double y, double r, double g, double b)
-        {
-            mx = x;
-            my = y;
-            mr = r;
-            mg = g;
-            mb = b;
-        }
+public:
+    double mx = 0;
+    double my = 0;
+    double mr = 0;
+    double mg = 0;
+    double mb = 0;
+    Superpixel() {}
+    Superpixel(double x, double y, double r, double g, double b)
+    {
+        mx = x;
+        my = y;
+        mr = r;
+        mg = g;
+        mb = b;
+    }
 };
 /// @brief génère une grille homogène centrée, visant K centres (si possible)
 /// @param w largueur de l'image
@@ -35,45 +36,44 @@ std::vector<Superpixel> genGrid(double w, double h, double K)
     double pad_y = h - S * std::floor(h / S);
 
     // spawn la grille
-    std::vector<Superpixel> X_k(std::floor(w/S) * std::floor(h/S));
+    std::vector<Superpixel> X_k(std::floor(w / S) * std::floor(h / S));
 
     for (int i = 0; i < std::floor(w / S); i++)
         for (int j = 0; j < std::floor(h / S); j++)
-            X_k[i * std::floor(h / S) + j] = Superpixel(((double)i) * S + S/2.0 + pad_x/2.0, ((double)j) * S + S/2.0 + pad_y/2.0, 0.0, 0.0, 0.0);
+            X_k[i * std::floor(h / S) + j] = Superpixel(((double)i) * S + S / 2.0 + pad_x / 2.0, ((double)j) * S + S / 2.0 + pad_y / 2.0, 0.0, 0.0, 0.0);
     return X_k;
 }
-
 
 /// @brief fait glisser les centres vers les gradients les plus faibles dans une zone de 2g*2g autour d'eux.
 /// @param imIN image à lire (ppm)
 /// @param grid grille à nudge
 /// @param g rayon de recherche
 /// @return la grille dont les centres on été nudge
-std::vector<Superpixel> & nudgeAlongGradient(ImageBase & imIN, std::vector<Superpixel> & grid, int g)
+std::vector<Superpixel> &nudgeAlongGradient(ImageBase &imIN, std::vector<Superpixel> &grid, int g)
 {
     for (size_t i = 0; i < grid.size(); i++)
     {
         int x = grid[i].mx;
         int y = grid[i].my;
         double m = MAXFLOAT;
-        for (int h = -g; h <= g;h++)
+        for (int h = -g; h <= g; h++)
             for (int w = -g; w <= g; w++)
             {
                 int dx = y + h;
                 int dy = x + w;
-                    if (dx < 0 || dx >= imIN.getWidth() - 1 || dy < 0 || dy >= imIN.getHeight() - 1)
-                        continue;
-                double r0 = imIN[(dy)*3][(dx)*3];
-                double g0 = imIN[(dy)*3][(dx)*3+1];
-                double b0 = imIN[(dy)*3][(dx)*3+2];
-                
-                double r1 = imIN[(dy)*3][(dx+1)*3];
-                double g1 = imIN[(dy)*3][(dx+1)*3+1];
-                double b1 = imIN[(dy)*3][(dx+1)*3+2];
+                if (dx < 0 || dx >= imIN.getWidth() - 1 || dy < 0 || dy >= imIN.getHeight() - 1)
+                    continue;
+                double r0 = imIN[(dy) * 3][(dx) * 3];
+                double g0 = imIN[(dy) * 3][(dx) * 3 + 1];
+                double b0 = imIN[(dy) * 3][(dx) * 3 + 2];
 
-                double r2 = imIN[(dy+1)*3][(dx)*3];
-                double g2 = imIN[(dy+1)*3][(dx)*3+1];
-                double b2 = imIN[(dy+1)*3][(dx)*3+2];
+                double r1 = imIN[(dy) * 3][(dx + 1) * 3];
+                double g1 = imIN[(dy) * 3][(dx + 1) * 3 + 1];
+                double b1 = imIN[(dy) * 3][(dx + 1) * 3 + 2];
+
+                double r2 = imIN[(dy + 1) * 3][(dx) * 3];
+                double g2 = imIN[(dy + 1) * 3][(dx) * 3 + 1];
+                double b2 = imIN[(dy + 1) * 3][(dx) * 3 + 2];
 
                 double r0s = r0 - r1;
                 double g0s = g0 - g1;
@@ -87,17 +87,16 @@ std::vector<Superpixel> & nudgeAlongGradient(ImageBase & imIN, std::vector<Super
                 if (m > G)
                 {
                     m = G;
-                    grid[i].mx = x+w;
-                    grid[i].my = y+h;
+                    grid[i].mx = x + w;
+                    grid[i].my = y + h;
                 }
             }
     }
     return grid;
 }
 double _ds(
-    double px, double py, 
-    double sx, double sy
-)
+    double px, double py,
+    double sx, double sy)
 {
     double x = (px - sx);
     double y = (py - sy);
@@ -105,9 +104,8 @@ double _ds(
 }
 
 double _dsS(
-    double px, double py, 
-    double sx, double sy
-)
+    double px, double py,
+    double sx, double sy)
 {
     double x = (px - sx);
     double y = (py - sy);
@@ -116,41 +114,35 @@ double _dsS(
 
 double _dc(
     double pr, double pg, double pb,
-    double sr, double sg, double sb
-)
+    double sr, double sg, double sb)
 {
     double r = (pr - sr);
     double g = (pg - sg);
     double b = (pb - sb);
-    return std::sqrt((r*r)+(g*g)+(b*b));
+    return std::sqrt((r * r) + (g * g) + (b * b));
 }
-
 
 double _dcS(
     double pr, double pg, double pb,
-    double sr, double sg, double sb
-)
+    double sr, double sg, double sb)
 {
     double r = (pr - sr);
     double g = (pg - sg);
     double b = (pb - sb);
-    return (r*r)+(g*g)+(b*b);
+    return (r * r) + (g * g) + (b * b);
 }
 
-
-
 double dist(
-    double px, double py, double pr, double pg, double pb, 
-    double sx, double sy, double sr, double sg, double sb, 
-    double m, double S
-)
+    double px, double py, double pr, double pg, double pb,
+    double sx, double sy, double sr, double sg, double sb,
+    double m, double S)
 {
     double ds = _dsS(px, py, sx, sy);
     double dc = _dcS(pr, pg, pb, sr, sg, sb);
-    return m*m*(ds / (S * S)) + dc;
+    return m * m * (ds / (S * S)) + dc;
 }
 
-std::vector<Superpixel> _updt(ImageBase & imIN, std::vector<int> & l, size_t K)
+std::vector<Superpixel> _updt(ImageBase &imIN, std::vector<int> &l, size_t K)
 {
     std::vector<Superpixel> nG(K);
     std::vector<double> n(K);
@@ -190,7 +182,7 @@ std::vector<Superpixel> _updt(ImageBase & imIN, std::vector<int> & l, size_t K)
     return nG;
 }
 
-std::vector<int> slic(ImageBase & imIN, int S, std::vector<Superpixel> & grid, double m)
+std::vector<int> slic(ImageBase &imIN, int S, std::vector<Superpixel> &grid, double m)
 {
     std::vector<double> d(imIN.getWidth() * imIN.getHeight());
     std::vector<int> l(imIN.getWidth() * imIN.getHeight());
@@ -219,7 +211,7 @@ std::vector<int> slic(ImageBase & imIN, int S, std::vector<Superpixel> & grid, d
                     int y = ((int)grid[k].my + h);
                     if (x < 0 || x >= imIN.getWidth() || y < 0 || y >= imIN.getHeight())
                         continue;
-                    double e = dist(x, y, imIN[y*3][x*3], imIN[y*3][x*3+1], imIN[y*3][x*3+2], grid[k].mx, grid[k].my, grid[k].mr, grid[k].mg, grid[k].mb, m, S);
+                    double e = dist(x, y, imIN[y * 3][x * 3], imIN[y * 3][x * 3 + 1], imIN[y * 3][x * 3 + 2], grid[k].mx, grid[k].my, grid[k].mr, grid[k].mg, grid[k].mb, m, S);
                     if (d[y * imIN.getWidth() + x] > e)
                     {
                         d[y * imIN.getWidth() + x] = e;
@@ -233,10 +225,74 @@ std::vector<int> slic(ImageBase & imIN, int S, std::vector<Superpixel> & grid, d
             double ds = _dsS(grid[k].mx, grid[k].my, nG[k].mx, nG[k].my);
             acc += ds;
         }
-        acc/=grid.size();
+        acc /= grid.size();
         E = std::sqrt(acc);
         grid = nG;
     }
 
     return l;
+}
+
+// Structure pour renvoyer la carte d'ajacence et le graphe
+struct CCResult
+{
+    std::vector<int> cc; // composante connexe
+    std::map<int, std::set<int>> adjacence;
+    int num_components;
+};
+
+/// @brief Labelise les composantes connecex et construit le graphe
+/// @param w largeur
+/// @param h hauteur
+/// @param l carte des labels d'origine
+/// @return Un objet avec la carte cc et la map d'ajacence
+CCResult labelConnectedComponents(int w, int h, const std::vector<int> &l)
+{
+    CCResult result;
+    result.cc.assign(w * h, -1);
+    int n = 0;
+    std::vector<int> C;
+    for (int i = 0; i < w * h; i++)
+    {
+        if (result.cc[i] == -1) // si le pixel n'est pas encore labellisé
+        {
+            result.cc[i] = n;
+            C.push_back(i);
+            int label_p = l[i];
+            while (!C.empty())
+            {
+                int q = C.back();
+                C.pop_back();
+                int qx = q % w;
+                int qy = q / w;
+                int dx[] = {1, -1, 0, 0};
+                int dy[] = {0, 0, 1, -1};
+                for (int dir = 0; dir < 4; dir++) // vérification des 4 voisins
+                {
+                    int rx = qx + dx[dir];
+                    int ry = qy + dy[dir];
+                    if (rx >= 0 && rx < w && ry >= 0 && ry < h)
+                    {
+                        int r = ry * w + rx;
+                        if (l[r] == label_p) // si le voisin fait partie du même label
+                        {
+                            if (result.cc[r] == -1) // et qu'il n'est pas labellisé
+                            {
+                                result.cc[r] = n;
+                                C.push_back(r);
+                            }
+                        }
+                        else if (result.cc[r] != -1) // le voisin appartient à un label différent + déjà labellisé
+                        {                            // alors on ajoute une arête dans le graphe
+                            result.adjacence[n].insert(result.cc[r]);
+                            result.adjacence[result.cc[r]].insert(n);
+                        }
+                    }
+                }
+            }
+            n++;
+        }
+    }
+    result.num_components = n;
+    return result;
 }
