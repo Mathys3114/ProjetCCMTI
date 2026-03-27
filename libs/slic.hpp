@@ -297,3 +297,130 @@ CCResult labelConnectedComponents(int w, int h, const std::vector<int> &l)
     result.num_components = n;
     return result;
 }
+
+/// @brief Applique les algorithmes 7, 8 et 9 pour forcer la connectivité de la carte
+/// @param imIN image d'origine
+/// @param l carte des labels de superpixels
+/// @param grid liste des superpixels
+/// @param w largeur
+/// @param h hauteur
+void enforceConnectivity(ImageBase &imIN, std::vector<int> &l, const std::vector<Superpixel> &grid, int w, int h)
+{
+    // Algo 6 : On récupère les composantes connexes
+    CCResult res = labelConnectedComponents(w, h, l);
+
+    // On calcule l'histogramme H (càd la taille de chaque composante)
+    std::vector<int> H(res.num_components, 0);
+    for (int i = 0; i < w * h; i++)
+    {
+        if (res.cc[i] != -1)
+            H[res.cc[i]]++;
+    }
+
+    // Algo 7 : Trouver la plus grande composante pour chaque superpixel
+    int K = grid.size();
+    std::vector<int> M(K, -1);
+
+    for (int i = 0; i < w * h; i++)
+    {
+        int superpixel_idx = l[i];
+        int comp_idx = res.cc[i];
+
+        if (M[superpixel_idx] == -1 || H[comp_idx] > H[M[superpixel_idx]])
+        {
+            M[superpixel_idx] = comp_idx;
+        }
+    }
+
+    // On transforme les pixels des composantes mineures en orphelins
+    for (int i = 0; i < w * h; i++)
+    {
+        if (res.cc[i] != M[l[i]])
+        {
+            l[i] = -1;
+        }
+    }
+
+    // Algo 8 : Calcul de la distance des orphelins par dilatations
+    for (int i = 0; i < w * h; i++)
+    {
+        if (l[i] < 0)
+            l[i] = -1000000;
+    }
+
+    std::vector<int> Q; // File pour stocker les orphelins triés par distance
+    int d = -1;
+    bool changed = true;
+    int dx[] = {1, -1, 0, 0};
+    int dy[] = {0, 0, 1, -1};
+
+    while (changed)
+    {
+        changed = false;
+        for (int i = 0; i < w * h; i++)
+        {
+            if (l[i] > d)
+            { // Pixel validé ou orphelin de distance plus proche
+                int qx = i % w;
+                int qy = i / w;
+                for (int dir = 0; dir < 4; dir++)
+                {
+                    int rx = qx + dx[dir];
+                    int ry = qy + dy[dir];
+                    if (rx >= 0 && rx < w && ry >= 0 && ry < h)
+                    {
+                        int r = ry * w + rx;
+                        if (l[r] < d)
+                        { // Orphelin non découvert ou plus lointain
+                            l[r] = d;
+                            Q.push_back(r); // Naturellement trié car d décroit
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
+        d--;
+    }
+
+    // Algo 9 : Adoption des orphelins selon la proximité de couleur
+    for (size_t i = 0; i < Q.size(); i++)
+    {
+        int p = Q[i];
+        int px = p % w;
+        int py = p / w;
+        double min_dc = MAXFLOAT;
+        int best_label = -1;
+
+        double pr = imIN[py * 3][px * 3];
+        double pg = imIN[py * 3][px * 3 + 1];
+        double pb = imIN[py * 3][px * 3 + 2];
+
+        for (int dir = 0; dir < 4; dir++)
+        {
+            int rx = px + dx[dir];
+            int ry = py + dy[dir];
+            if (rx >= 0 && rx < w && ry >= 0 && ry < h)
+            {
+                int r = ry * w + rx;
+                if (l[r] >= 0)
+                { // Si le voisin a un label parent valide
+                    double sr = grid[l[r]].mr;
+                    double sg = grid[l[r]].mg;
+                    double sb = grid[l[r]].mb;
+
+                    double dc = _dcS(pr, pg, pb, sr, sg, sb);
+                    if (dc < min_dc)
+                    {
+                        min_dc = dc;
+                        best_label = l[r];
+                    }
+                }
+            }
+        }
+        if (best_label != -1)
+        {
+            l[p] = best_label;
+        }
+    }
+}

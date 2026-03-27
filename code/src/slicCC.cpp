@@ -5,11 +5,11 @@
 #include "ImageBase.h"
 #include "slic.hpp"
 
-const char *USAGE = "slicCC K m g imgIN.ppm imgOUT.ppm";
+const char *USAGE = "slicCC K m g imgIN.ppm imgOUTcomposantes_connexes.ppm imgOUTpropre.ppm";
 
 int main(int argc, char *argv[])
 {
-    if (argc != 6)
+    if (argc != 7)
     {
         std::cerr << USAGE << std::endl;
         return 1;
@@ -18,7 +18,8 @@ int main(int argc, char *argv[])
     double m = std::atof(argv[2]);
     double g = std::atof(argv[3]);
     char *imINn = argv[4];
-    char *imOUTn = argv[5];
+    char *imOUTcc = argv[5];
+    char *imOUTn = argv[6];
     ImageBase imIN;
     imIN.load(imINn);
 
@@ -28,9 +29,12 @@ int main(int argc, char *argv[])
     int S = std::floor(std::sqrt(N / K));
     std::vector<Superpixel> grid = genGrid(w, h, K);
     grid = nudgeAlongGradient(imIN, grid, g);
-    std::vector<int> l = slic(imIN, S, grid, m);
-    CCResult res = labelConnectedComponents(w, h, l);
 
+    // K-means (crée des fragment isolés)
+    std::vector<int> l = slic(imIN, S, grid, m);
+
+    // Resors une image avec les couleurs de toutes les composantes connexes
+    CCResult res = labelConnectedComponents(w, h, l);
     std::vector<unsigned char> randomColors(res.num_components * 3);
     srand(67);
     for (int i = 0; i < res.num_components; i++)
@@ -51,6 +55,20 @@ int main(int argc, char *argv[])
         imOUT.getData()[i * 3 + 2] = randomColors[component_id * 3 + 2];
     }
 
-    imOUT.save(imOUTn);
+    imOUT.save(imOUTcc);
+
+    // Nettoyage et force la connectivité
+    enforceConnectivity(imIN, l, grid, w, h);
+
+    // Resors une image propre
+    ImageBase imOUTpropre(imIN.getWidth(), imIN.getHeight(), true);
+    for (size_t i = 0; i < l.size(); i++)
+    {
+        imOUTpropre.getData()[i * 3] = grid[l[i]].mr;
+        imOUTpropre.getData()[i * 3 + 1] = grid[l[i]].mg;
+        imOUTpropre.getData()[i * 3 + 2] = grid[l[i]].mb;
+    }
+    imOUTpropre.save(imOUTn);
+
     return 0;
 }
